@@ -1,0 +1,13 @@
+name: emotion_env
+channels:
+  - defaults
+dependencies:
+  - python=3.10
+  - spyder
+  - notebook
+  - pandas
+  - pytorch
+  - matplotlib
+  - tensorboard
+  - tensorboardx
+prefix: /opt/anaconda3/envs/emotion_env
