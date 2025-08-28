@@ -16,7 +16,8 @@ from create_sliding_window import create_sliding_window
 fs = 32              # Sampling frequency (Hz)
 chunk_duration = 30   # seconds
 overlap_duration = 29 # seconds
-root_path = '/Users/sheng/Documents/emotion_model_project/data'
+# root_path = '/Users/sheng/Documents/emotion_model_project/data' # path on mac
+root_path = '/home/sheng/project/affective-computing/data' # path on server
 
 
 def preprocess_data_6(fs, chunk_duration, overlap_duration, root_path):
@@ -112,7 +113,11 @@ def preprocess_data_6(fs, chunk_duration, overlap_duration, root_path):
             if chunks is None:
                 next
             else:
-                torch.save(chunks, f'/Users/sheng/Documents/emotion_model_project/preprocessed_data/dataset_6_chunk_{no_chunk}_{subject_dirs[j]}.pt')
+                # path on mac
+                # torch.save(chunks, f'/Users/sheng/Documents/emotion_model_project/preprocessed_data/dataset_6_chunk_{no_chunk}_{subject_dirs[j]}.pt')
+                # path on server
+                torch.save(chunks, f'//home/sheng/project/affective-computing/preprocessed_data/dataset_6_chunk_{no_chunk}_{subject_dirs[j]}.pt')
+
                 no_chunk += 1
             
         '''

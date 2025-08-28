@@ -163,6 +163,6 @@ for epoch in range(epochs):
     avg_test_loss = total_test_loss / max(1, total_num_test_loader)
     test_epoch_losses.append(avg_test_loss)
     print(f"Epoch [{epoch+1}/{epochs}] | Test Loss: {avg_test_loss}")
-    writer.add_scalar("loss/test_epoch", avg_test_loss, epoch)
+    writer.add_scalar("loss/test_epoch", avg_train_loss, epoch)
 
 
