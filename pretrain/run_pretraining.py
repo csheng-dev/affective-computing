@@ -108,7 +108,7 @@ for epoch in range(epochs):
         model.train()        
         
         for batch_idx, (inputs, _) in enumerate(train_loader):
-            if batch_idx %% 100 == 0:
+            if batch_idx % 100 == 0:
                 print(f"Batch {batch_idx+1}/{len_train_loader}")
             
             # print(f"[input shape] {inputs.shape}")
@@ -157,7 +157,7 @@ for epoch in range(epochs):
             total_num_test_loader += len_test_loader
             
             for batch_idx, (inputs, _) in enumerate(test_loader):
-                if batch_idx %% 100 == 0:
+                if batch_idx % 100 == 0:
                     print(f"dataset {j+1}, batch_idx {batch_idx+1}/{len_test_loader}")
                 
                 inputs = inputs.to(device)
