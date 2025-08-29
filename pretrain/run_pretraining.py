@@ -90,14 +90,14 @@ for epoch in range(epochs):
     # For DEBUG --
     # for i in range(3):
     # For DEBUG --
-    
-        print(f"train data file {i+1}")
+        if i % 50 == 0: 
+            print(f"train data file {i+1}")
         train_data = torch.load(train_paths[i])[:,:,1:4]
         train_loader = DataLoader(TensorDataset(train_data, train_data), batch_size = batch_size, shuffle = True)
 
         # for DEBUG --
-        small_dataset = train_data[:64*3]
-        train_loader = DataLoader(TensorDataset(small_dataset, small_dataset), batch_size = batch_size, shuffle = True)
+        # small_dataset = train_data[:64*3]
+        # train_loader = DataLoader(TensorDataset(small_dataset, small_dataset), batch_size = batch_size, shuffle = True)
         # for DEBUG --
 
         # count total number of batches in this epoch
@@ -144,7 +144,8 @@ for epoch in range(epochs):
         # for DEBUG
         # for j in range(2):
         # for DEBUG
-            print(f"evaluate dataset {j+1}")
+            if j % 50 == 0:
+                print(f"evaluate dataset {j+1}")
             test_data = torch.load(test_paths[j])[:,:,1:4]
             test_loader = DataLoader(TensorDataset(test_data, test_data), batch_size = batch_size, shuffle=False)
  
