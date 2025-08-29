@@ -20,6 +20,7 @@ from models.plot_func import moving_average
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
+from zoneinfo import ZoneInfo  
 
 
 
@@ -32,7 +33,10 @@ batch_size = 64
 lr = 3e-4
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-run_name = f"{datetime.now():%Y%m%d-%H%M%S}_lr{lr}_bs{batch_size}"
+# set names of output log files
+tz = ZoneInfo("Asia/Shanghai")  # 北京时间 = Asia/Shanghai = UTC+8
+stamp = datetime.now(tz).strftime("%Y%m%d-%H%M%S%z")  # 带+0800偏移
+run_name = f"{stamp}_lr{lr}_bs{batch_size}"
 writer = SummaryWriter(log_dir=f"runs/pretrain/{run_name}")
 
 # === Devide preprocessed data into train/test set === 
