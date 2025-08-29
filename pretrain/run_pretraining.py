@@ -90,8 +90,7 @@ for epoch in range(epochs):
     # For DEBUG --
     # for i in range(3):
     # For DEBUG --
-        if i % 50 == 0: 
-            print(f"train data file {i+1}")
+        print(f"train data file {i+1}")
         train_data = torch.load(train_paths[i])[:,:,1:4]
         train_loader = DataLoader(TensorDataset(train_data, train_data), batch_size = batch_size, shuffle = True)
 
