@@ -85,10 +85,10 @@ for epoch in range(epochs):
     total_num_train_loader = 0
     total_train_loss = 0.0  # CHANGED
     
-    # for i in range(len(train_paths)):
+    for i in range(len(train_paths)):
         
     # For DEBUG --
-    for i in range(3):
+    # for i in range(3):
     # For DEBUG --
     
         print(f"train data file {i+1}")
