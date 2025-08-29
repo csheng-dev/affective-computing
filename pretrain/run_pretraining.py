@@ -108,8 +108,8 @@ for epoch in range(epochs):
         model.train()        
         
         for batch_idx, (inputs, _) in enumerate(train_loader):
-
-            print(f"Batch {batch_idx+1}/{len_train_loader}")
+            if batch_idx %% 100 == 0:
+                print(f"Batch {batch_idx+1}/{len_train_loader}")
             
             # print(f"[input shape] {inputs.shape}")
             inputs = inputs.to(device)
@@ -140,25 +140,25 @@ for epoch in range(epochs):
     print("Starting evaluation")
     with torch.no_grad():
     
-        #for j in range(len(test_paths)):
+        for j in range(len(test_paths)):
         # for DEBUG
-        for j in range(2):
+        # for j in range(2):
         # for DEBUG
             print(f"evaluate dataset {j+1}")
             test_data = torch.load(test_paths[j])[:,:,1:4]
             test_loader = DataLoader(TensorDataset(test_data, test_data), batch_size = batch_size, shuffle=False)
  
             # for DEBUG --
-            small_dataset = test_data[:64*2]
-            test_loader = DataLoader(TensorDataset(small_dataset, small_dataset), batch_size = batch_size, shuffle = False)
+            # small_dataset = test_data[:64*2]
+            # test_loader = DataLoader(TensorDataset(small_dataset, small_dataset), batch_size = batch_size, shuffle = False)
             # for DEBUG --
     
             len_test_loader = len(test_loader)
             total_num_test_loader += len_test_loader
             
             for batch_idx, (inputs, _) in enumerate(test_loader):
-                
-                print(f"dataset {j+1}, batch_idx {batch_idx+1}/{len_test_loader}")
+                if batch_idx %% 100 == 0:
+                    print(f"dataset {j+1}, batch_idx {batch_idx+1}/{len_test_loader}")
                 
                 inputs = inputs.to(device)
                 outputs = model(inputs)
