@@ -19,8 +19,9 @@ import matplotlib.pyplot as plt
 from models.plot_func import moving_average
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
+from datetime import datetime
 
-writer = SummaryWriter(log_dir="runs/pretrain")
+
 
 
 # ==== config ===
@@ -31,7 +32,8 @@ batch_size = 64
 lr = 3e-4
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-
+run_name = f"{datetime.now():%Y%m%d-%H%M%S}_lr{lr}_bs{batch_size}"
+writer = SummaryWriter(log_dir=f"runs/pretrain/{run_name}")
 
 # === Devide preprocessed data into train/test set === 
 
