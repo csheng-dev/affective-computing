@@ -21,23 +21,41 @@ import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
 from zoneinfo import ZoneInfo  
-
-
-
+import argparse
 
 # ==== config ===
+
 train_path = 'preprocessed_data/'
 test_path = 'preprocessed_data/'
-epochs = 5
-batch_size = 64
-lr = 3e-4
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+parser = argparse.ArgumentParser()
+parser.add_argument('--run_name', type=str, default='exp')
+parser.add_argument('--lr', type=float, default=3e-4)
+parser.add_argument('--seed', type=int, default=42)
+parser.add_argument('--epochs', type=int, default=5)
+parser.add_argument('--ckpt_dir', type=str, default='ckpts/pretrain/exp')
+parser.add_argument('--log_dir', type=str, default='exp')
+parser.add_argument('--batch_size', type=int, default=64)
+args = parser.parse_args()
 
-# set names of output log files
+os.makedirs(args.ckpt_dir, exist_ok=True)
+
+epochs = args.epochs
+lr = args.lr
+batch_size = args.batch_size
+
+'''
+set names of output log files, using time
 tz = ZoneInfo("Asia/Shanghai")  # 北京时间 = Asia/Shanghai = UTC+8
 stamp = datetime.now(tz).strftime("%Y%m%d-%H%M%S%z")  # 带+0800偏移
 run_name = f"{stamp}_lr{lr}_bs{batch_size}"
 writer = SummaryWriter(log_dir=f"runs/pretrain/{run_name}")
+'''
+
+run_name = f"{args.log_dir}_lr{lr}_batch_size{batch_size}"
+writer = SummaryWriter(log_dir=f"runs/pretrain/{run_name}")
+
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # === Devide preprocessed data into train/test set === 
 
@@ -170,6 +188,15 @@ for epoch in range(epochs):
     avg_test_loss = total_test_loss / max(1, total_num_test_loader)
     test_epoch_losses.append(avg_test_loss)
     print(f"Epoch [{epoch+1}/{epochs}] | Test Loss: {avg_test_loss}")
-    writer.add_scalar("loss/test_epoch", avg_train_loss, epoch)
+    writer.add_scalar("loss/test_epoch", avg_test_loss, epoch)
+
+save_path = os.path.join(args.ckpt_dir, f'final.pt')
+torch.save(model.state_dict(), save_path)
+print(f"Model saved to {save_path}")
+writer.close()
+
+
+
+
 
 
