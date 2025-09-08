@@ -35,7 +35,7 @@ parser.add_argument('--lr', type=float, default=3e-4)
 parser.add_argument('--seed', type=int, default=42)
 parser.add_argument('--epochs', type=int, default=5)
 parser.add_argument('--ckpt_dir', type=str, default='ckpts/pretrain/exp')
-parser.add_argument('--log_dir', type=str, default='exp')
+parser.add_argument('--log_dir', type=str, default='runs/pretrain/exp')
 parser.add_argument('--batch_size', type=int, default=64)
 args = parser.parse_args()
 
