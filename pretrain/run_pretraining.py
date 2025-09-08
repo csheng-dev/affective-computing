@@ -8,7 +8,8 @@ Created on Thu Jul 24 20:08:15 2025
 import os
 import sys
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 
 import torch
