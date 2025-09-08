@@ -89,7 +89,7 @@ for f in range(k):
 
     # create checkpoint dir for each fold
     fold_run_name = f"{args.log_dir}_fold{f}_lr{args.lr}_bs{batch_size}"
-    fold_log_dir = f"runs/pretrain/{fold_run_name}"
+    fold_log_dir = f"{fold_run_name}"
     writer = SummaryWriter(log_dir=fold_log_dir)
     
     '''
