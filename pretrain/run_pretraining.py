@@ -43,7 +43,7 @@ args = parser.parse_args()
 os.makedirs(args.ckpt_dir, exist_ok=True)
 # preprocessed_path = '/Users/sheng/Documents/emotion_model_project/preprocessed_data/' # mac path
 preprocessed_path = '/home/sheng/project/affective-computing/preprocessed_data/' # server path
-os.chdir(preprocessed_path)
+# os.chdir(preprocessed_path)
 
 epochs = args.epochs
 lr = args.lr
@@ -139,7 +139,7 @@ for f in range(k):
         for i in range(len(train_paths)):
             
             print(f"train data file {i+1}")
-            train_data = torch.load(train_paths[i])[:,:,1:4]
+            train_data = torch.load(os.path.join(preprocessed_path, train_paths[i]))[:,:,1:4]
             train_loader = DataLoader(TensorDataset(train_data, train_data), batch_size = batch_size, shuffle = True)
     
             # count total number of batches in this epoch
