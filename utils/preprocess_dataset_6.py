@@ -1,16 +1,11 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
-
-
 import os
 import pandas as pd
 import torch
 from create_sliding_window import create_sliding_window
 
-
-# In[3]:
 
 # Parameters
 fs = 32              # Sampling frequency (Hz)
@@ -32,10 +27,6 @@ def preprocess_data_6(fs, chunk_duration, overlap_duration, root_path):
     for subdir in subject_dirs:
         print(subdir)
     
-    
-
-
-    # In[5]:
 
     no_chunk = 0
     for j in range(len(subject_dirs)):

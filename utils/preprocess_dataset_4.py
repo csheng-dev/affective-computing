@@ -1,5 +1,10 @@
-#!/usr/bin/env python
-# coding: utf-8
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Sep  5 15:45:34 2025
+
+@author: sheng
+"""
 
 import os
 import pandas as pd
@@ -18,34 +23,40 @@ fs = 32              # Sampling frequency (Hz)
 chunk_duration = 30   # seconds
 overlap_duration = 29 # seconds
 
-def preprocess_data_2(fs, chunk_duration, overlap_duration, root_path):
+def preprocess_data_4(fs, chunk_duration, overlap_duration, root_path):
     
-    base_path = root_path + '/2/EmpaticaE4Stress/Subjects/'
+    base_path = root_path + '/4/data/PPG_FieldStudy/'
     
     # Get a list of all subdirectories in "1"
     subject_dirs = [name for name in os.listdir(base_path) if os.path.isdir(os.path.join(base_path, name))]
     subject_dirs
     
-    # Print each subdirectory name
     for subdir in subject_dirs:
         print(subdir)
     
     for j in range(len(subject_dirs)):
         print(subject_dirs[j])
         os.listdir(os.path.join(base_path, subject_dirs[j]))
-        BVP_path = os.path.join(base_path, subject_dirs[j], "BVP.csv")
-        EDA_path = os.path.join(base_path, subject_dirs[j], "EDA.csv")
-        TEMP_path = os.path.join(base_path, subject_dirs[j], "TEMP.csv")
+        BVP_path = os.path.join(base_path, subject_dirs[j], f"{subject_dirs[j]}_E4", "BVP.csv")
+        EDA_path = os.path.join(base_path, subject_dirs[j], f"{subject_dirs[j]}_E4", "EDA.csv")
+        TEMP_path = os.path.join(base_path, subject_dirs[j],f"{subject_dirs[j]}_E4", "TEMP.csv")
 
         # Read the CSV file
         df_BVP = pd.read_csv(BVP_path, header=None)
         df_EDA = pd.read_csv(EDA_path, header=None)
-        df_EDA = df_EDA.map(lambda x: str_to_float(x))
         df_TEMP = pd.read_csv(TEMP_path, header=None)
         
+        
+        
+        if df_BVP.iloc[0,0] == df_EDA.iloc[0,0] and df_BVP.iloc[0,0] == df_TEMP.iloc[0,0]:
+            print("Time matches")
+        else:
+            print("Time doesn't match")
+        
+        
         # ignore the 1st or 2nd row
-        df_BVP = df_BVP.iloc[1:].reset_index(drop=True)
-        df_EDA = df_EDA.iloc[1:].reset_index(drop=True)
+        df_BVP = df_BVP.iloc[2:].reset_index(drop=True)
+        df_EDA = df_EDA.iloc[2:].reset_index(drop=True)
         df_TEMP = df_TEMP.iloc[2:].reset_index(drop=True)
 
         # downsample BVP to 32 hz
@@ -76,8 +87,6 @@ def preprocess_data_2(fs, chunk_duration, overlap_duration, root_path):
         print(df.head())
         df = df.astype(float)  # or .astype(np.float32)
         
-        if math.isnan(df_EDA.iloc[1,0]):
-            break
         df = torch.tensor(df.values, dtype=torch.float32)
 
         # chunk df into chunks of given seconds with given seconds' overlap
@@ -92,28 +101,11 @@ def preprocess_data_2(fs, chunk_duration, overlap_duration, root_path):
         chunks = create_sliding_window(df, chunk_size, step_size)
 
         # path on mac            
-        no = subject_dirs[j].split('_')[1]
-        # torch.save(chunks, f'/Users/sheng/Documents/emotion_model_project/preprocessed_data/dataset_2_chunk_{j}_{no}.pt') 
+        # torch.save(chunks, f'/Users/sheng/Documents/emotion_model_project/preprocessed_data/dataset_4_chunk_{j}_{subject_dirs[j]}.pt') 
         # path on server
-        torch.save(chunks, f'/home/sheng/project/affective-computing/preprocessed_data/dataset_2_chunk_{j}_{no}.pt')
+        torch.save(chunks, f'/home/sheng/project/affective-computing/preprocessed_data/dataset_4_chunk_{j}_{subject_dirs[j]}.pt')
         
 
+        
 
-# transform str in the df into numeric
-def str_to_float(x):
-    if isinstance(x, str):
-        first = x.find('.')
-        second = x.find('.', first+1)
-        if second != -1:
-            x_new = x[:second] + x[(second+1):]
-            return(float(x_new))
-    return(float(x))
-    
-    
-preprocess_data_2(fs, chunk_duration, overlap_duration, root_path)
-    
-
-    
-
-
-
+preprocess_data_4(fs, chunk_duration, overlap_duration, root_path)
