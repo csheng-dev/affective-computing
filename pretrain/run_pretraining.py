@@ -9,7 +9,7 @@ import os
 import sys
 
 
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 
 import torch
