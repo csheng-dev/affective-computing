@@ -6,7 +6,7 @@ import pandas as pd
 import os
 import pandas as pd
 import torch
-from utils.create_sliding_window import create_sliding_window
+from create_sliding_window import create_sliding_window
 import math
 
 
