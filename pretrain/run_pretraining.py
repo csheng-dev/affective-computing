@@ -184,7 +184,7 @@ for f in range(k):
 
                 if j % 50 == 0:
                     print(f"evaluate dataset {j+1}")
-                val_data = torch.load(val_paths[j])[:,:,1:4]
+                val_data = torch.load(os.path.join(preprocessed_path, val_paths[j]))[:,:,1:4]
                 val_loader = DataLoader(TensorDataset(val_data, val_data), batch_size = batch_size, shuffle=False)
         
                 len_val_loader = len(val_loader)
