@@ -212,7 +212,7 @@ for f in range(k):
             torch.save(model.state_dict(), os.path.join(args.ckpt_dir, 'best.pt'))
     
     torch.save(model.state_dict(), os.path.join(fold_ckpt_dir, "final.pt"))
-    print(f"[Fold {f+1}/{k}] Best Val Loss: {best_val:. 6f} (ckpt: {os.path.join(fold_ckpt_dir, 'best.pt')})")            
+    print(f"[Fold {f+1}/{k}] Best Val Loss: {best_val:.6f} (ckpt: {os.path.join(fold_ckpt_dir, 'best.pt')})")            
     writer.add_hparams(
         {"lr": args.lr, "batch_size": args.batch_size, "seed": args.seed, "fold": f},
         {"hparam/best_val": best_val}
