@@ -74,7 +74,9 @@ paths_split = split_k_fold(k) # get list of k elements, each element contains pa
 
 fold_best_vals = []
     
-
+def assert_infinite(t, name):
+    if not torch.isfinite(t).all():
+        raise RuntimeError(f"{name} has NaN/INF")
     
 # start k fold cross validation
 for f in range(k):
@@ -153,9 +155,16 @@ for f in range(k):
                 
                 inputs = inputs.to(device)
                 outputs = model(inputs)
+                assert_infinite(outputs, "train outputs") # debug INF
                 loss = loss_fn(outputs, inputs)
+                assert_infinite(loss, "train_loss") # debug INF
                 optimizer.zero_grad()
                 loss.backward()
+                total_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0) # debug INF
+                if not torch.isfinite(torch.tensor(total_norm)):                    # debug INF
+                    raise RuntimeError(f"Grad_norm NaN/Inf: {total_norm}")        # debug INF
+                
+                
                 optimizer.step()
                 
                 bs = inputs.size(0)
@@ -196,8 +205,12 @@ for f in range(k):
                     
                     inputs = inputs.to(device)
                     outputs = model(inputs)
+                    
+                    assert_infinite(outputs, "val outputs")    # debug INF
          
                     loss = loss_fn(outputs, inputs)
+                    
+                    assert_infinite(loss, "val loss")   # debug INF
                     
                     bs = inputs.size(0)
                     val_samples += bs
