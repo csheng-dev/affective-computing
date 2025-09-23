@@ -182,6 +182,7 @@ for f in range(k):
                         if not torch.isfinite(p.grad).all():
                             print(n, "grad stats:", p.grad.min().item(), p.grad.max().item())
                     # 跳过该 batch，避免权重被污染
+                    raise RuntimeError("Catch error") 
                     optimizer.zero_grad(set_to_none=True)
                     continue
 
