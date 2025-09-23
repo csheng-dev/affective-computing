@@ -150,7 +150,7 @@ for f in range(k):
           
             
             for batch_idx, (inputs, _) in enumerate(train_loader):
-                if batch_idx % 10 == 0:
+                if batch_idx % 100 == 0:
                     print(f"Batch {batch_idx+1}/{len_train_loader}")
                 
                 inputs = inputs.to(device)
