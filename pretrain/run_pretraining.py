@@ -159,7 +159,37 @@ for f in range(k):
                 loss = loss_fn(outputs, inputs)
                 assert_infinite(loss, "train_loss") # debug INF
                 optimizer.zero_grad()
+                                
+                # === find the bad gradients
+                def find_bad_grads(model):
+                    bad_list = []
+                    for n, p in model.named_parameters():
+                        if p.grad is None: 
+                            continue
+                        g = p.grad
+                        if not torch.isfinite(g).all():
+                            bad_list.append(n)
+                    return bad_list
+
                 loss.backward()
+                bad = find_bad_grads(model)
+                if bad:
+                    print("[BAD GRAD PARAMS]:", bad[:10], " ... total:", len(bad))
+                    # 可选：逐个打印范数看看大小
+                    for n, p in model.named_parameters():
+                        if p.grad is None: 
+                            continue
+                        if not torch.isfinite(p.grad).all():
+                            print(n, "grad stats:", p.grad.min().item(), p.grad.max().item())
+                    # 跳过该 batch，避免权重被污染
+                    optimizer.zero_grad(set_to_none=True)
+                    continue
+
+                # ==== find the bad gradients ===
+                
+                
+                
+                
                 total_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0) # debug INF
                 if not torch.isfinite(torch.tensor(total_norm)):                    # debug INF
                     raise RuntimeError(f"Grad_norm NaN/Inf: {total_norm}")        # debug INF
