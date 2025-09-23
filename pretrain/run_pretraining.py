@@ -66,6 +66,9 @@ def set_seed(seed: int):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    
 # === prepare ===
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 set_seed(args.seed)
