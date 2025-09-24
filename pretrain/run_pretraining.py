@@ -65,9 +65,7 @@ def set_seed(seed: int):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-    
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+
     
 # === prepare ===
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -186,8 +184,8 @@ for f in range(k):
                             print(n, "grad stats:", p.grad.min().item(), p.grad.max().item())
                     # 跳过该 batch，避免权重被污染
                     raise RuntimeError("Catch error") 
-                    optimizer.zero_grad(set_to_none=True)
-                    continue
+                    # optimizer.zero_grad(set_to_none=True)
+                    # continue
 
                 # ==== find the bad gradients ===
                 
@@ -195,8 +193,8 @@ for f in range(k):
                 
                 
                 total_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0) # debug INF
-                if not torch.isfinite(torch.tensor(total_norm)):                    # debug INF
-                    raise RuntimeError(f"Grad_norm NaN/Inf: {total_norm}")        # debug INF
+                # if not torch.isfinite(torch.tensor(total_norm)):                    # debug INF
+                #     raise RuntimeError(f"Grad_norm NaN/Inf: {total_norm}")        # debug INF
                 
                 
                 optimizer.step()
