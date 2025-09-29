@@ -59,12 +59,17 @@ print("Initializing model...")
 
 # set random seed
 def set_seed(seed: int):
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"  # CUDA 可选的强确定性
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
+
+    torch.use_deterministic_algorithms(True, warn_only=False)
+
     torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
 
     
 # === prepare ===
@@ -94,14 +99,6 @@ for f in range(k):
     fold_run_name = f"{args.log_dir}_fold{f}_lr{args.lr}_bs{batch_size}"
     fold_log_dir = f"{fold_run_name}"
     writer = SummaryWriter(log_dir=fold_log_dir)
-    
-    '''
-    set names of output log files, using time
-    tz = ZoneInfo("Asia/Shanghai")  # 北京时间 = Asia/Shanghai = UTC+8
-    stamp = datetime.now(tz).strftime("%Y%m%d-%H%M%S%z")  # 带+0800偏移
-    run_name = f"{stamp}_lr{lr}_bs{batch_size}"
-    writer = SummaryWriter(log_dir=f"runs/pretrain/{run_name}")
-    '''
     
     fold_ckpt_dir = os.path.join(args.ckpt_dir, f"fold{f}")
     os.makedirs(fold_ckpt_dir, exist_ok=True)
@@ -151,8 +148,8 @@ for f in range(k):
           
             
             for batch_idx, (inputs, _) in enumerate(train_loader):
-                # if batch_idx % 100 == 0:
-                #     print(f"Batch {batch_idx+1}/{len_train_loader}")
+                if batch_idx % 100 == 0:
+                    print(f"Batch {batch_idx+1}/{len_train_loader}")
                 
                 inputs = inputs.to(device)
                 outputs = model(inputs)
@@ -176,14 +173,14 @@ for f in range(k):
                 bad = find_bad_grads(model)
                 if bad:
                     print("[BAD GRAD PARAMS]:", bad[:10], " ... total:", len(bad))
-                    # 可选：逐个打印范数看看大小
+
                     for n, p in model.named_parameters():
                         if p.grad is None: 
                             continue
                         if not torch.isfinite(p.grad).all():
                             print(n, "grad stats:", p.grad.min().item(), p.grad.max().item())
-                    # 跳过该 batch，避免权重被污染
                     raise RuntimeError("Catch error") 
+                    # skip this batch
                     # optimizer.zero_grad(set_to_none=True)
                     # continue
 
@@ -193,8 +190,8 @@ for f in range(k):
                 
                 
                 total_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0) # debug INF
-                # if not torch.isfinite(torch.tensor(total_norm)):                    # debug INF
-                #     raise RuntimeError(f"Grad_norm NaN/Inf: {total_norm}")        # debug INF
+                if not torch.isfinite(torch.tensor(total_norm)):                    # debug INF
+                    raise RuntimeError(f"Grad_norm NaN/Inf: {total_norm}")        # debug INF
                 
                 
                 optimizer.step()
