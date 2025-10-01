@@ -74,15 +74,20 @@ class LazyTensorDataset(Dataset):
     def __init__(self, file_path, use_channels=(1,2,3)):
         self.file_path = file_path
         self.use_channels = use_channels
-        t = torch.load(file_path, map_location="cpu")  # !!!need to os.join preprocessed_path and file_path
+        t = torch.load(file_path, map_location="cpu")  
         # t is shape: [N, T, c_all]
         self.N = t.shape[0]
         del t
+        self._cache = None
+    def _ensure_loaded(self):
+        if self._cache is None:
+            self._cache = torch.load(self.file_path, map_location="cpu")
+            
     def __len__(self):
         return self.N
     def __getitem__(self, idx):
-        t = torch.load(self.file_path, map_location="cpu")
-        x = t[idx][:, self.use_channels]   # [T, 3]
+        self._ensure_loaded()
+        x = self._cache[idx][:, self.use_channels]   # [T, 3]
         return x, x
 
 
@@ -95,7 +100,8 @@ def make_concat_dataset(paths, root_dir):
     return(ConcatDataset(dsets))
 
     
-def make_loader(dataset, batch_size, shuffle, base_seed, num_workers):
+def make_loader(dataset, batch_size, shuffle, base_seed, num_workers=4, 
+                prefetch_factor=4, pin_memory=True):
     '''
     build a reproducible DataLoader:
     - control the shuffle randomness
@@ -122,7 +128,9 @@ def make_loader(dataset, batch_size, shuffle, base_seed, num_workers):
         generator=g,      # control the shuffle of DataLoader
         num_workers=num_workers,
         worker_init_fn=worker_init_fn if num_workers > 0 else None,
-        pin_memory=True        
+        pin_memory=pin_memory,
+        persistent_workers=True,
+        prefetch_factor=prefetch_factor                
     )
     
     return loader
@@ -225,7 +233,7 @@ for f in range(k):
             if batch_idx % 100 == 0:
                 print(f"Fold {f+1}/{k} Batch {batch_idx+1}/{len_train_loader}") # keep track of progress
                 
-            inputs = inputs.to(device)
+            inputs = inputs.to(device, non_blocking=True)
             outputs = model(inputs)
             assert_infinite(outputs, "train outputs") # debug INF
             loss = loss_fn(outputs, inputs)
@@ -282,7 +290,7 @@ for f in range(k):
                 if batch_idx % 100 == 0:
                     print(f"[Fold {f+1}/{k}] Epoch {epoch+1} [Evaluate] batch_idx {batch_idx+1}/{len_val_loader}")
                 
-                inputs = inputs.to(device)
+                inputs = inputs.to(device, non_blocking=True)
                 outputs = model(inputs)
                 
                 assert_infinite(outputs, "val outputs")    # debug INF
