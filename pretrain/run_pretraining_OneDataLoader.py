@@ -223,8 +223,8 @@ for f in range(k):
     
         base_seed = args.seed + f*1000 + epoch
         
-        train_loader = make_loader(train_ds, batch_size=batch_size, shuffle=True, base_seed=base_seed, num_workers=0)
-        val_loader = make_loader(val_ds, batch_size=batch_size, shuffle=True, base_seed=base_seed, num_workers=0)
+        train_loader = make_loader(train_ds, batch_size=batch_size, shuffle=True, base_seed=base_seed, num_workers=4)
+        val_loader = make_loader(val_ds, batch_size=batch_size, shuffle=True, base_seed=base_seed, num_workers=4)
         
         # count total number of batches in this epoch
         len_train_loader = len(train_loader)
