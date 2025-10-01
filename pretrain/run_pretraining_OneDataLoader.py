@@ -144,9 +144,6 @@ def find_bad_grads(model):
 print("Initializing model...")
 
 
-
-
-    
     
 # === prepare ===
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -157,7 +154,7 @@ paths_split = split_k_fold(k) # get list of k elements, each element contains pa
 fold_best_vals = []
 
 def assert_infinite(t, name):
-    if not torch.isfinite(t).all():
+    if not torch.isfinite(total_norm).item():
         raise RuntimeError(f"{name} has NaN/INF")
  
 
