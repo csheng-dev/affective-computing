@@ -8,7 +8,7 @@ Created on Fri Jul 11 16:12:17 2025
 
 import torch  
 import torch.nn as nn  
-from models.tcn_encoder_2 import TCNEncoder  # Import TCNEncoder
+from models.tcn_encoder import TCNEncoder  # Import TCNEncoder
 from models.transformer_encoder import TransformerEncoder  # Import TransformerEncoder
 from models.lstm_decoder import LSTMDecoder  # Import LSTMDecoder
 

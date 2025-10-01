@@ -8,38 +8,342 @@ Created on Fri Sep 26 19:52:29 2025
 
 
 
-from torch.utils.data import ConcatDataset, Dataset
+import os
+import sys
+
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+import numpy as np
+import pandas as pd
+import torch
+from torch.utils.data import DataLoader, TensorDataset, Dataset, ConcatDataset, Subset
+from models.full_model import AutoencoderModel
+import matplotlib.pyplot as plt
+from models.plot_func import moving_average
+
+from torch.utils.tensorboard import SummaryWriter
+from datetime import datetime
+from zoneinfo import ZoneInfo  
+import argparse
+from utils.split_data import split_k_fold
+import random
+
+# ==== config ===
+
+train_path = 'preprocessed_data/'
+test_path = 'preprocessed_data/'
+parser = argparse.ArgumentParser()
+parser.add_argument('--run_name', type=str, default='exp')
+parser.add_argument('--lr', type=float, default=3e-4)
+parser.add_argument('--seed', type=int, default=42)
+parser.add_argument('--epochs', type=int, default=5)
+parser.add_argument('--ckpt_dir', type=str, default='ckpts/pretrain/exp')
+parser.add_argument('--log_dir', type=str, default='runs/pretrain/exp')
+parser.add_argument('--batch_size', type=int, default=64)
+args = parser.parse_args()
+
+
+os.makedirs(args.ckpt_dir, exist_ok=True)
+# preprocessed_path = '/Users/sheng/Documents/emotion_model_project/preprocessed_data/' # mac path
+preprocessed_path = '/home/sheng/project/affective-computing/preprocessed_data/' # server path
+
+
+epochs = args.epochs
+lr = args.lr
+batch_size = args.batch_size
+k = 5 # num of folds in spliting
+
+
+# === Functions and classes needed ===
+def set_seed(seed: int):
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"  # CUDA 可选的强确定性
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+    torch.use_deterministic_algorithms(True, warn_only=False)
+
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+    
 
 class LazyTensorDataset(Dataset):
-    """ 每个文件一个Dataset，按需加载，避免一次性占用内存 """
     def __init__(self, file_path, use_channels=(1,2,3)):
         self.file_path = file_path
         self.use_channels = use_channels
-        # 读取一次形状信息（也可以在 __getitem__ 时再懒加载）
-        t = torch.load(file_path, map_location="cpu")  # [N, T, C_all]
+        t = torch.load(file_path, map_location="cpu")  # !!!need to os.join preprocessed_path and file_path
+        # t is shape: [N, T, c_all]
         self.N = t.shape[0]
         del t
-
     def __len__(self):
         return self.N
-
     def __getitem__(self, idx):
-        t = torch.load(self.file_path, map_location="cpu")  # 简单起见每次load；更高级可缓存
-        x = t[idx][:, self.use_channels]  # [T, 3]
+        t = torch.load(self.file_path, map_location="cpu")
+        x = t[idx][:, self.use_channels]   # [T, 3]
         return x, x
 
-# 组装 train/val ConcatDataset
-def make_concat_dataset(paths):
+
+# concate train/val ConcatDataset
+def make_concat_dataset(paths, root_dir):
     dsets = []
     for p in paths:
-        full = os.path.join(preprocessed_path, p)
+        full = os.path.join(root_dir, p)
         dsets.append(LazyTensorDataset(full, use_channels=(1,2,3)))
-    return ConcatDataset(dsets)
+    return(ConcatDataset(dsets))
 
-train_ds = make_concat_dataset(train_paths)
-val_ds   = make_concat_dataset(val_paths)
+    
+def make_loader(dataset, batch_size, shuffle, base_seed, num_workers):
+    '''
+    build a reproducible DataLoader:
+    - control the shuffle randomness
+    - fix the randomness of worker's state
+    '''    
+    
+    # create a generator of the DataLoader level, to control randomness of shuffle
+    g = torch.Generator()
+    g.manual_seed(base_seed) # make sure the shuffle order is the same
+    
+    # work_init_fn: make sure in the process of multiple processes (num_worker>0)
+    # that the seed of each numpy/random is the same for each worker
+    def worker_init_fn(worker_id):
+        seed = base_seed + worker_id
+        np.random.seed(seed)
+        random.seed(seed)
+        torch.manual_seed(seed)
+    
+    # construct DataLoader
+    loader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        generator=g,      # control the shuffle of DataLoader
+        num_workers=num_workers,
+        worker_init_fn=worker_init_fn if num_workers > 0 else None,
+        pin_memory=True        
+    )
+    
+    return loader
+    
+# === find the bad gradients
+def find_bad_grads(model):
+    bad_list = []
+    for n, p in model.named_parameters():
+        if p.grad is None: 
+            continue
+        g = p.grad
+        if not torch.isfinite(g).all():
+            bad_list.append(n)
+    return bad_list
 
-# 单个 DataLoader（可复现）
-base_seed = args.seed + f*1000 + epoch
-train_loader = make_loader(train_ds, batch_size=batch_size, shuffle=True,  base_seed=base_seed, num_workers=0)
-val_loader   = make_loader(val_ds,   batch_size=batch_size, shuffle=False, base_seed=base_seed, num_workers=0)
+
+
+# === Load model ===
+print("Initializing model...")
+
+
+
+
+    
+    
+# === prepare ===
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+set_seed(args.seed)
+
+paths_split = split_k_fold(k) # get list of k elements, each element contains paths for the fold
+
+fold_best_vals = []
+
+def assert_infinite(t, name):
+    if not torch.isfinite(t).all():
+        raise RuntimeError(f"{name} has NaN/INF")
+ 
+
+
+# start k fold cross validation
+for f in range(k):
+    print("=" * 80)
+    print(f"[fold {f+1}/{k}]")
+    
+    # set random seed again
+    set_seed(args.seed + f)
+
+    val_paths = paths_split[f]
+    train_paths = [x for i, sub in enumerate(paths_split) if i != f for x in sub]
+    
+    train_ds = make_concat_dataset(train_paths, preprocessed_path)
+    val_ds = make_concat_dataset(val_paths, preprocessed_path)
+
+    
+
+    # create checkpoint dir for each fold
+    fold_run_name = f"{args.log_dir}_fold{f}_lr{args.lr}_bs{batch_size}"
+    fold_log_dir = f"{fold_run_name}"
+    writer = SummaryWriter(log_dir=fold_log_dir)
+ 
+    fold_ckpt_dir = os.path.join(args.ckpt_dir, f"fold{f}")
+    os.makedirs(fold_ckpt_dir, exist_ok=True)
+    
+    print("Initializing model...")
+    model = AutoencoderModel(tcn_channels = [16, 32], 
+                             transformer_dim = 96, 
+                             transformer_heads = 3, 
+                             transformer_layers = 1,
+                             lstm_hidden = 64, 
+                             lstm_layers = 2, 
+                             output_dim = 3, 
+                             seq_len = 960, 
+                             dropout = 0.1)
+    model = model.to(device)
+    
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    loss_fn = torch.nn.MSELoss()
+    
+    # train several epochs, record early/best of the fold
+    best_val = float("inf")
+    global_step = 0
+    
+    for epoch in range(epochs):
+        print(f"[Fold {f+1}/{k}] Starting epoch {epoch+1}/{epochs}")
+    
+    
+        # === Train ===
+        model.train()
+        
+        total_num_train_loader = 0
+        total_train_loss, train_samples = 0.0, 0
+    
+        base_seed = args.seed + f*1000 + epoch
+        
+        train_loader = make_loader(train_ds, batch_size=batch_size, shuffle=True, base_seed=base_seed, num_workers=0)
+        val_loader = make_loader(val_ds, batch_size=batch_size, shuffle=True, base_seed=base_seed, num_workers=0)
+        
+        # count total number of batches in this epoch
+        len_train_loader = len(train_loader)
+        
+        for batch_idx, (inputs, _) in enumerate(train_loader):
+            if batch_idx % 100 == 0:
+                print(f"Fold {f+1}/{k} Batch {batch_idx+1}/{len_train_loader}") # keep track of progress
+                
+            inputs = inputs.to(device)
+            outputs = model(inputs)
+            assert_infinite(outputs, "train outputs") # debug INF
+            loss = loss_fn(outputs, inputs)
+            assert_infinite(loss, "train_loss") # debug INF
+            optimizer.zero_grad() 
+            
+            loss.backward()
+    
+            bad = find_bad_grads(model)
+            
+            '''
+            # detect bad gradients and stop training
+            if bad:
+                print("[BAD GRAD PARAMS]:", bad[:10], " ... total:", len(bad))
+
+                for n, p in model.named_parameters():
+                    if p.grad is None: 
+                        continue
+                    if not torch.isfinite(p.grad).all():
+                        print(n, "grad stats:", p.grad.min().item(), p.grad.max().item())
+                raise RuntimeError("Catch error") 
+            
+            '''
+            
+            total_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0) # norm clipping gradients
+            if not torch.isfinite(torch.tensor(total_norm)):                    # debug INF
+                raise RuntimeError(f"Grad_norm NaN/Inf: {total_norm}")    # debug INF
+                
+            
+            optimizer.step()
+            
+            bs = inputs.size(0)
+            train_samples += bs
+            total_train_loss += loss.item()*bs
+            
+            # plot loss vs batch_idx 
+            if batch_idx % 10 == 0:
+                writer.add_scalar("loss/train_batch", loss.item(), batch_idx)
+
+        avg_train_loss = total_train_loss / max(1, train_samples)
+        writer.add_scalar("loss/train_epoch", avg_train_loss, epoch)
+        print(f"[Fold {f+1}/{k}] Epoch {epoch+1} | Train Loss: {avg_train_loss:.6f}")
+
+    
+        # === Eval ===
+        model.eval()
+        total_val_loss, val_samples = 0.0, 0
+        len_val_loader = len(val_loader)
+        
+        print("Starting evaluation")
+        
+        with torch.no_grad():
+            for batch_idx, (inputs, _) in enumerate(val_loader):
+                if batch_idx % 100 == 0:
+                    print(f"[Fold {f+1}/{k}] Epoch {epoch+1} [Evaluate] batch_idx {batch_idx+1}/{len_val_loader}")
+                
+                inputs = inputs.to(device)
+                outputs = model(inputs)
+                
+                assert_infinite(outputs, "val outputs")    # debug INF
+     
+                loss = loss_fn(outputs, inputs)
+                
+                assert_infinite(loss, "val loss")   # debug INF
+                
+                bs = inputs.size(0)
+                val_samples += bs
+                total_val_loss += loss.item() * bs
+                
+            avg_val_loss = total_val_loss / max(1, val_samples)
+            writer.add_scalar("loss/val_epoch", avg_val_loss, epoch)
+            print(f"[Fold {f+1}/{k}] Epoch {epoch+1} | Val Loss: {avg_val_loss:.6f}")
+            
+            if avg_val_loss < best_val:
+                best_val = avg_val_loss
+                torch.save(model.state_dict(), os.path.join(args.ckpt_dir, 'best.pt'))
+            
+            torch.save(model.state_dict(), os.path.join(fold_ckpt_dir, "final.pt"))
+            
+            print(f"[Fold {f+1}/{k}] Best Val Loss: {best_val:.6f} (ckpt: {os.path.join(fold_ckpt_dir, 'best.pt')})")            
+            writer.add_hparams(
+                {"lr": args.lr, "batch_size": args.batch_size, "seed": args.seed, "fold": f},
+                {"hparam/best_val": best_val}
+            )
+            writer.close()
+            
+            fold_best_vals.append(best_val)
+            
+            print(f"Best val loss: {fold_best_vals}")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

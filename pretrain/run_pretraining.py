@@ -43,7 +43,6 @@ args = parser.parse_args()
 os.makedirs(args.ckpt_dir, exist_ok=True)
 # preprocessed_path = '/Users/sheng/Documents/emotion_model_project/preprocessed_data/' # mac path
 preprocessed_path = '/home/sheng/project/affective-computing/preprocessed_data/' # server path
-# os.chdir(preprocessed_path)
 
 epochs = args.epochs
 lr = args.lr
