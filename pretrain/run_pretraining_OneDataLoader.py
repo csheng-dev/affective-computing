@@ -58,7 +58,7 @@ k = 5 # num of folds in spliting
 # === Functions and classes needed ===
 def set_seed(seed: int):
     os.environ["PYTHONHASHSEED"] = str(seed)
-    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"  # CUDA 可选的强确定性
+    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"  # CUDA 
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -224,7 +224,7 @@ for f in range(k):
         base_seed = args.seed + f*1000 + epoch
         
         train_loader = make_loader(train_ds, batch_size=batch_size, shuffle=True, base_seed=base_seed, num_workers=4)
-        val_loader = make_loader(val_ds, batch_size=batch_size, shuffle=True, base_seed=base_seed, num_workers=4)
+        val_loader = make_loader(val_ds, batch_size=batch_size, shuffle=False, base_seed=base_seed, num_workers=4)
         
         # count total number of batches in this epoch
         len_train_loader = len(train_loader)
@@ -271,7 +271,9 @@ for f in range(k):
             
             # plot loss vs batch_idx 
             if batch_idx % 10 == 0:
-                writer.add_scalar("loss/train_batch", loss.item(), batch_idx)
+                writer.add_scalar("loss/train_batch", loss.item(), global_step)
+            
+            global_step += 1
 
         avg_train_loss = total_train_loss / max(1, train_samples)
         writer.add_scalar("loss/train_epoch", avg_train_loss, epoch)
@@ -313,18 +315,19 @@ for f in range(k):
             
             torch.save(model.state_dict(), os.path.join(fold_ckpt_dir, "final.pt"))
             
-            print(f"[Fold {f+1}/{k}] Best Val Loss: {best_val:.6f} (ckpt: {os.path.join(fold_ckpt_dir, 'best.pt')})")            
+            print(f"[Fold {f+1}/{k}] Best Val Loss: {best_val:.6f} (ckpt: {os.path.join(args.ckpt_dir, 'best.pt')})")            
+            
             writer.add_hparams(
                 {"lr": args.lr, "batch_size": args.batch_size, "seed": args.seed, "fold": f},
                 {"hparam/best_val": best_val}
             )
-            writer.close()
+            
             
             fold_best_vals.append(best_val)
             
             print(f"Best val loss: {fold_best_vals}")
 
-
+    writer.close()
 
 
 
