@@ -29,7 +29,9 @@ import argparse
 from utils.split_data import split_k_fold
 import random
 
-# ==== config ===
+from utils.experiment_utils import init_experiment
+
+# ===== config =====
 
 train_path = 'preprocessed_data/'
 test_path = 'preprocessed_data/'
@@ -38,13 +40,40 @@ parser.add_argument('--run_name', type=str, default='exp')
 parser.add_argument('--lr', type=float, default=3e-4)
 parser.add_argument('--seed', type=int, default=42)
 parser.add_argument('--epochs', type=int, default=5)
-parser.add_argument('--ckpt_dir', type=str, default='ckpts/pretrain/exp')
+# parser.add_argument('--ckpt_dir', type=str, default='ckpts/pretrain/exp')
 parser.add_argument('--log_dir', type=str, default='runs/pretrain/exp')
 parser.add_argument('--batch_size', type=int, default=64)
+
 args = parser.parse_args()
 
 
-os.makedirs(args.ckpt_dir, exist_ok=True)
+# ===== create config =====
+                         
+config = {
+    "name": args.run_name,
+    "seed": args.seed,
+    "model": {
+        "tcn_channels": [16, 32],
+        "transformer_dim": 96,
+        "transformer_heads": 3,
+        "transformer_layers": 1,
+        "lstm_hidden": 64,
+        "lstm_layers": 2,
+        "output_dim": 3,
+        "seq_len": 960,
+        "dropout": 0.1
+    },    
+    "train": {
+        "batch_size": args.batch_size,
+        "epoch": args.epochs,
+        "lr": args.lr
+    }
+} 
+
+exp_dir = init_experiment(config)
+print(f"[INFO] Experiment directory has been created: {exp_dir}")
+
+
 # preprocessed_path = '/Users/sheng/Documents/emotion_model_project/preprocessed_data/' # mac path
 preprocessed_path = '/home/sheng/project/affective-computing/preprocessed_data/' # server path
 
@@ -53,6 +82,7 @@ epochs = args.epochs
 lr = args.lr
 batch_size = args.batch_size
 k = 5 # num of folds in spliting
+
 
 
 # === Functions and classes needed ===
@@ -129,7 +159,7 @@ def make_loader(dataset, batch_size, shuffle, base_seed, num_workers=4,
         num_workers=num_workers,
         worker_init_fn=worker_init_fn if num_workers > 0 else None,
         pin_memory=pin_memory,
-        persistent_workers=True,
+        persistent_workers=False,
         prefetch_factor=prefetch_factor                
     )
     
@@ -173,6 +203,11 @@ for f in range(k):
     print("=" * 80)
     print(f"[fold {f+1}/{k}]")
     
+    fold_dir = os.path.join(exp_dir, f"fold_{f}")
+    os.makedirs(fold_dir, exist_ok=True)
+    ckpt_dir = os.path.join(fold_dir, "ckpt")
+    os.makedirs(ckpt_dir, exist_ok=True)
+    
     # set random seed again
     set_seed(args.seed + f)
 
@@ -185,23 +220,21 @@ for f in range(k):
     
 
     # create checkpoint dir for each fold
-    fold_run_name = f"{args.log_dir}_fold{f}_lr{args.lr}_bs{batch_size}"
-    fold_log_dir = f"{fold_run_name}"
-    writer = SummaryWriter(log_dir=fold_log_dir)
- 
-    fold_ckpt_dir = os.path.join(args.ckpt_dir, f"fold{f}")
-    os.makedirs(fold_ckpt_dir, exist_ok=True)
+    tb_dir = os.path.join(exp_dir, "tensorboard", f"fold_{f}_lr{args.lr}_bs{batch_size}")
+    writer = SummaryWriter(log_dir=tb_dir)
+    # fold_ckpt_dir = os.path.join(args.ckpt_dir, f"fold{f}")
+    # os.makedirs(fold_ckpt_dir, exist_ok=True)
     
     print("Initializing model...")
-    model = AutoencoderModel(tcn_channels = [16, 32], 
-                             transformer_dim = 96, 
-                             transformer_heads = 3, 
-                             transformer_layers = 1,
-                             lstm_hidden = 64, 
-                             lstm_layers = 2, 
-                             output_dim = 3, 
-                             seq_len = 960, 
-                             dropout = 0.1)
+    model = AutoencoderModel(tcn_channels = config['model']['tcn_channels'], 
+                             transformer_dim = config['model']['transformer_dim'], 
+                             transformer_heads = config['model']['transformer_heads'], 
+                             transformer_layers = config['model']['transformer_layers'],
+                             lstm_hidden = config['model']['lstm_hidden'], 
+                             lstm_layers = config['model']['lstm_layers'], 
+                             output_dim = config['model']['output_dim'], 
+                             seq_len = config['model']['seq_len'], 
+                             dropout = config['model']['dropout'])
     model = model.to(device)
     
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -311,21 +344,21 @@ for f in range(k):
             
             if avg_val_loss < best_val:
                 best_val = avg_val_loss
-                torch.save(model.state_dict(), os.path.join(args.ckpt_dir, 'best.pt'))
+                torch.save(model.state_dict(), os.path.join(ckpt_dir, 'best.pt'))
             
-            torch.save(model.state_dict(), os.path.join(fold_ckpt_dir, "final.pt"))
-            
-            print(f"[Fold {f+1}/{k}] Best Val Loss: {best_val:.6f} (ckpt: {os.path.join(args.ckpt_dir, 'best.pt')})")            
-            
-            writer.add_hparams(
-                {"lr": args.lr, "batch_size": args.batch_size, "seed": args.seed, "fold": f},
-                {"hparam/best_val": best_val}
-            )
-            
-            
-            fold_best_vals.append(best_val)
-            
-            print(f"Best val loss: {fold_best_vals}")
+    torch.save(model.state_dict(), os.path.join(ckpt_dir, "final.pt"))
+    
+    print(f"[Fold {f+1}/{k}] Best Val Loss: {best_val:.6f} (ckpt: {os.path.join(ckpt_dir, 'best.pt')})")            
+    
+    writer.add_hparams(
+        {"lr": args.lr, "batch_size": args.batch_size, "seed": args.seed, "fold": f},
+        {"hparam/best_val": best_val}
+    )
+    
+    
+    fold_best_vals.append(best_val)
+    
+    print(f"Best val loss: {fold_best_vals}")
 
     writer.close()
 
