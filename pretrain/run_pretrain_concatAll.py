@@ -73,7 +73,7 @@ print(f"[INFO] Experiment directory has been created: {exp_dir}")
 
 
 # preprocessed_path = '/Users/sheng/Documents/emotion_model_project/preprocessed_data/' # mac path
-ßpreprocessed_path = '/home/sheng/project/affective-computing/preprocessed_data/' # server path
+preprocessed_path = '/home/sheng/project/affective-computing/preprocessed_data/' # server path
 
 epochs = args.epochs
 lr = args.lr
