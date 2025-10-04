@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Fri Sep 26 19:52:29 2025
+Created on Sat Oct  4 15:54:29 2025
 
 @author: sheng
 """
-
-
 
 import os
 import sys
@@ -75,14 +73,12 @@ print(f"[INFO] Experiment directory has been created: {exp_dir}")
 
 
 # preprocessed_path = '/Users/sheng/Documents/emotion_model_project/preprocessed_data/' # mac path
-preprocessed_path = '/home/sheng/project/affective-computing/preprocessed_data/' # server path
-
+ßpreprocessed_path = '/home/sheng/project/affective-computing/preprocessed_data/' # server path
 
 epochs = args.epochs
 lr = args.lr
 batch_size = args.batch_size
 k = 5 # num of folds in spliting
-
 
 
 # === Functions and classes needed ===
@@ -94,77 +90,11 @@ def set_seed(seed: int):
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
 
-    torch.use_deterministic_algorithms(True, warn_only=False)
-
-    torch.backends.cudnn.benchmark = False
-    torch.backends.cudnn.deterministic = True
-    
-
-class LazyTensorDataset(Dataset):
-    def __init__(self, file_path, use_channels=(1,2,3)):
-        self.file_path = file_path
-        self.use_channels = use_channels
-        t = torch.load(file_path, map_location="cpu")  
-        # t is shape: [N, T, c_all]
-        self.N = t.shape[0]
-        del t
-        self._cache = None
-    def _ensure_loaded(self):
-        if self._cache is None:
-            self._cache = torch.load(self.file_path, map_location="cpu")
-            
-    def __len__(self):
-        return self.N
-    def __getitem__(self, idx):
-        self._ensure_loaded()
-        x = self._cache[idx][:, self.use_channels]   # [T, 3]
-        return x, x
+    torch.use_deterministic_algorithms(False, warn_only=False)
+    torch.backends.cudnn.benchmark = True
+    torch.backends.cudnn.deterministic = False
 
 
-# concate train/val ConcatDataset
-def make_concat_dataset(paths, root_dir):
-    dsets = []
-    for p in paths:
-        full = os.path.join(root_dir, p)
-        dsets.append(LazyTensorDataset(full, use_channels=(1,2,3)))
-    return(ConcatDataset(dsets))
-
-    
-def make_loader(dataset, batch_size, shuffle, base_seed, num_workers=4, 
-                prefetch_factor=4, pin_memory=True):
-    '''
-    build a reproducible DataLoader:
-    - control the shuffle randomness
-    - fix the randomness of worker's state
-    '''    
-    
-    # create a generator of the DataLoader level, to control randomness of shuffle
-    g = torch.Generator()
-    g.manual_seed(base_seed) # make sure the shuffle order is the same
-    
-    # work_init_fn: make sure in the process of multiple processes (num_worker>0)
-    # that the seed of each numpy/random is the same for each worker
-    def worker_init_fn(worker_id):
-        seed = base_seed + worker_id
-        np.random.seed(seed)
-        random.seed(seed)
-        torch.manual_seed(seed)
-    
-    # construct DataLoader
-    loader = DataLoader(
-        dataset,
-        batch_size=batch_size,
-        shuffle=shuffle,
-        generator=g,      # control the shuffle of DataLoader
-        num_workers=num_workers,
-        worker_init_fn=worker_init_fn if num_workers > 0 else None,
-        pin_memory=pin_memory,
-        persistent_workers=False,
-        prefetch_factor=prefetch_factor                
-    )
-    
-    return loader
-    
 # === find the bad gradients
 def find_bad_grads(model):
     bad_list = []
@@ -175,18 +105,16 @@ def find_bad_grads(model):
         if not torch.isfinite(g).all():
             bad_list.append(n)
     return bad_list
+
 def assert_infinite(t, name):
     if not torch.isfinite(t).all():
         raise RuntimeError(f"{name} has NaN/INF")
-
 
 
 # === Load model ===
 print("Initializing model...")
 
 
-
-    
 # === prepare ===
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 set_seed(args.seed)
@@ -194,8 +122,6 @@ set_seed(args.seed)
 paths_split = split_k_fold(k) # get list of k elements, each element contains paths for the fold
 
 fold_best_vals = []
-
- 
 
 
 # start k fold cross validation
@@ -214,16 +140,24 @@ for f in range(k):
     val_paths = paths_split[f]
     train_paths = [x for i, sub in enumerate(paths_split) if i != f for x in sub]
     
-    train_ds = make_concat_dataset(train_paths, preprocessed_path)
-    val_ds = make_concat_dataset(val_paths, preprocessed_path)
+    # concate all data file into one big torch tensor
+    train_ls = []
+    for p in train_paths:
+        ds_path = os.path.join(preprocessed_path, p)
+        ds = torch.load(ds_path)[:,:,1:4]
+        train_ls.append(ds)
+    train_ds = torch.cat(train_ls, dim=0)
 
+    val_ls = []
+    for p in val_paths:
+        ds_path = os.path.join(preprocessed_path, p)
+        ds = torch.load(ds_path)[:,:,1:4]
+        val_ls.append(ds)
+    val_ds = torch.cat(val_ls, dim=0)
     
-
     # create checkpoint dir for each fold
     tb_dir = os.path.join(exp_dir, "tensorboard", f"fold_{f}_lr{args.lr}_bs{batch_size}")
     writer = SummaryWriter(log_dir=tb_dir)
-    # fold_ckpt_dir = os.path.join(args.ckpt_dir, f"fold{f}")
-    # os.makedirs(fold_ckpt_dir, exist_ok=True)
     
     print("Initializing model...")
     model = AutoencoderModel(tcn_channels = config['model']['tcn_channels'], 
@@ -243,7 +177,7 @@ for f in range(k):
     # train several epochs, record early/best of the fold
     best_val = float("inf")
     global_step = 0
-    
+
     for epoch in range(epochs):
         print(f"[Fold {f+1}/{k}] Starting epoch {epoch+1}/{epochs}")
     
@@ -256,8 +190,8 @@ for f in range(k):
     
         base_seed = args.seed + f*1000 + epoch
         
-        train_loader = make_loader(train_ds, batch_size=batch_size, shuffle=True, base_seed=base_seed, num_workers=4)
-        val_loader = make_loader(val_ds, batch_size=batch_size, shuffle=False, base_seed=base_seed, num_workers=4)
+        train_loader = DataLoader(TensorDataset(train_ds, train_ds), batch_size = batch_size, shuffle = True)
+        val_loader = DataLoader(TensorDataset(val_ds, val_ds), batch_size = batch_size, shuffle = False)
         
         # count total number of batches in this epoch
         len_train_loader = len(train_loader)
@@ -275,21 +209,7 @@ for f in range(k):
             
             loss.backward()
     
-            bad = find_bad_grads(model)
-            
-            '''
-            # detect bad gradients and stop training
-            if bad:
-                print("[BAD GRAD PARAMS]:", bad[:10], " ... total:", len(bad))
-
-                for n, p in model.named_parameters():
-                    if p.grad is None: 
-                        continue
-                    if not torch.isfinite(p.grad).all():
-                        print(n, "grad stats:", p.grad.min().item(), p.grad.max().item())
-                raise RuntimeError("Catch error") 
-            
-            '''
+            # bad = find_bad_grads(model)
             
             total_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0) # norm clipping gradients
             if not torch.isfinite(torch.tensor(total_norm)):                    # debug INF
@@ -307,12 +227,12 @@ for f in range(k):
                 writer.add_scalar("loss/train_batch", loss.item(), global_step)
             
             global_step += 1
-
+            
         avg_train_loss = total_train_loss / max(1, train_samples)
         writer.add_scalar("loss/train_epoch", avg_train_loss, epoch)
         print(f"[Fold {f+1}/{k}] Epoch {epoch+1} | Train Loss: {avg_train_loss:.6f}")
 
-    
+        
         # === Eval ===
         model.eval()
         total_val_loss, val_samples = 0.0, 0
@@ -345,7 +265,7 @@ for f in range(k):
             if avg_val_loss < best_val:
                 best_val = avg_val_loss
                 torch.save(model.state_dict(), os.path.join(ckpt_dir, 'best.pt'))
-            
+                
     torch.save(model.state_dict(), os.path.join(ckpt_dir, "final.pt"))
     
     print(f"[Fold {f+1}/{k}] Best Val Loss: {best_val:.6f} (ckpt: {os.path.join(ckpt_dir, 'best.pt')})")            
@@ -362,23 +282,9 @@ for f in range(k):
 
     writer.close()
 
-
-
-
-
-
-
-
-
-
-
-
         
-
-
-
-
-
+    
+    
 
 
 

@@ -1,0 +1,18 @@
+name: exp
+seed: 42
+model:
+  tcn_channels:
+  - 16
+  - 32
+  transformer_dim: 96
+  transformer_heads: 3
+  transformer_layers: 1
+  lstm_hidden: 64
+  lstm_layers: 2
+  output_dim: 3
+  seq_len: 960
+  dropout: 0.1
+train:
+  batch_size: 64
+  epoch: 5
+  lr: 0.0003
