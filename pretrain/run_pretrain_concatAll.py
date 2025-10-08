@@ -38,8 +38,6 @@ parser.add_argument('--run_name', type=str, default='exp')
 parser.add_argument('--lr', type=float, default=3e-4)
 parser.add_argument('--seed', type=int, default=42)
 parser.add_argument('--epochs', type=int, default=5)
-# parser.add_argument('--ckpt_dir', type=str, default='ckpts/pretrain/exp')
-# parser.add_argument('--log_dir', type=str, default='runs/pretrain/exp')
 parser.add_argument('--batch_size', type=int, default=64)
 
 args = parser.parse_args()
@@ -95,7 +93,7 @@ def set_seed(seed: int):
     torch.backends.cudnn.deterministic = False
 
 
-# === find the bad gradients
+# find the bad gradients
 def find_bad_grads(model):
     bad_list = []
     for n, p in model.named_parameters():
@@ -109,6 +107,16 @@ def find_bad_grads(model):
 def assert_infinite(t, name):
     if not torch.isfinite(t).all():
         raise RuntimeError(f"{name} has NaN/INF")
+
+# check statistics of batches
+def check_batch_stats(x, tag):
+    x = x.detach().float()
+    B, T, C = x.shape
+    flat = x.view(-1, C)
+    mean = flat.mean(0)
+    std  = flat.std(0, unbiased=False)
+    p99  = torch.quantile(flat, 0.99, dim=0)
+    print(f"[{tag}] mean={mean.tolist()}  std={std.tolist()}  p99={p99.tolist()}  max_abs={flat.abs().max().item():.3f}")
 
 
 # === Load model ===
@@ -201,6 +209,11 @@ for f in range(k):
                 print(f"Fold {f+1}/{k} Batch {batch_idx+1}/{len_train_loader}") # keep track of progress
                 
             inputs = inputs.to(device, non_blocking=True)
+            
+            if batch_idx > 40:
+                break
+            check_batch_stats(inputs, f"fold2/train/b{batch_idx}") # check batch statistics
+            
             outputs = model(inputs)
             assert_infinite(outputs, "train outputs") # debug INF
             loss = loss_fn(outputs, inputs)

@@ -102,7 +102,9 @@ def split_k_fold(num_folds):
 
 if __name__ == '__main__':
     split_k_fold(5)
-
+    res1 = split_k_fold(5)
+    res2 = split_k_fold(5)
+    print(res1 == res2)
 
 
 
