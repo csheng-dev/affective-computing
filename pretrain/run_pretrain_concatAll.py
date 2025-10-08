@@ -210,9 +210,9 @@ for f in range(k):
                 
             inputs = inputs.to(device, non_blocking=True)
             
-            if batch_idx > 40:
+            if batch_idx > 4:
                 break
-            check_batch_stats(inputs, f"fold2/train/b{batch_idx}") # check batch statistics
+            check_batch_stats(inputs, f"fold{f}/train/b{batch_idx}") # check batch statistics
             
             outputs = model(inputs)
             assert_infinite(outputs, "train outputs") # debug INF
@@ -261,9 +261,9 @@ for f in range(k):
                 
                 inputs = inputs.to(device, non_blocking=True)
                 
-                if batch_idx > 40:
+                if batch_idx > 4:
                     break
-                check_batch_stats(inputs, f"fold2/val/b{batch_idx}") # check batch statistics
+                check_batch_stats(inputs, f"fold{f}/val/b{batch_idx}") # check batch statistics
                 
                 outputs = model(inputs)
                 
