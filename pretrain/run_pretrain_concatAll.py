@@ -188,7 +188,9 @@ for f in range(k):
 
     for epoch in range(epochs):
         print(f"[Fold {f+1}/{k}] Starting epoch {epoch+1}/{epochs}")
-    
+        
+        if epoch > 0:
+            break
     
         # === Train ===
         model.train()
@@ -212,7 +214,7 @@ for f in range(k):
             
             if batch_idx > 4:
                 break
-            check_batch_stats(inputs, f"fold{f}/train/b{batch_idx}") # check batch statistics
+            check_batch_stats(inputs, f"fold{f+1}/train/b{batch_idx}") # check batch statistics
             
             outputs = model(inputs)
             assert_infinite(outputs, "train outputs") # debug INF
@@ -263,7 +265,7 @@ for f in range(k):
                 
                 if batch_idx > 4:
                     break
-                check_batch_stats(inputs, f"fold{f}/val/b{batch_idx}") # check batch statistics
+                check_batch_stats(inputs, f"fold{f+1}/val/b{batch_idx}") # check batch statistics
                 
                 outputs = model(inputs)
                 
