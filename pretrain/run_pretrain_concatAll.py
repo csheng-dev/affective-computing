@@ -258,7 +258,13 @@ for f in range(k):
                 if batch_idx % 100 == 0:
                     print(f"[Fold {f+1}/{k}] Epoch {epoch+1} [Evaluate] batch_idx {batch_idx+1}/{len_val_loader}")
                 
+                
                 inputs = inputs.to(device, non_blocking=True)
+                
+                if batch_idx > 40:
+                    break
+                check_batch_stats(inputs, f"fold2/val/b{batch_idx}") # check batch statistics
+                
                 outputs = model(inputs)
                 
                 assert_infinite(outputs, "val outputs")    # debug INF
