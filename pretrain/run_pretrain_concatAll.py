@@ -212,9 +212,9 @@ for f in range(k):
                 
             inputs = inputs.to(device, non_blocking=True)
             
-            if batch_idx > 4:
-                break
-            check_batch_stats(inputs, f"fold{f+1}/train/b{batch_idx}") # check batch statistics
+            # if batch_idx > 4:
+            #     break
+            # check_batch_stats(inputs, f"fold{f+1}/train/b{batch_idx}") # check batch statistics
             
             outputs = model(inputs)
             assert_infinite(outputs, "train outputs") # debug INF
@@ -226,9 +226,9 @@ for f in range(k):
     
             # bad = find_bad_grads(model)
             
-            total_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0) # norm clipping gradients
-            if not torch.isfinite(torch.tensor(total_norm)):                    # debug INF
-                raise RuntimeError(f"Grad_norm NaN/Inf: {total_norm}")    # debug INF
+            #total_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0) # norm clipping gradients
+            # if not torch.isfinite(torch.tensor(total_norm)):                    # debug INF
+                # raise RuntimeError(f"Grad_norm NaN/Inf: {total_norm}")    # debug INF
                 
             
             optimizer.step()
@@ -263,9 +263,9 @@ for f in range(k):
                 
                 inputs = inputs.to(device, non_blocking=True)
                 
-                if batch_idx > 4:
-                    break
-                check_batch_stats(inputs, f"fold{f+1}/val/b{batch_idx}") # check batch statistics
+                # if batch_idx > 4:
+                #     break
+                # check_batch_stats(inputs, f"fold{f+1}/val/b{batch_idx}") # check batch statistics
                 
                 outputs = model(inputs)
                 
