@@ -189,9 +189,6 @@ for f in range(k):
     for epoch in range(epochs):
         print(f"[Fold {f+1}/{k}] Starting epoch {epoch+1}/{epochs}")
         
-        if epoch > 0:
-            break
-    
         # === Train ===
         model.train()
         
