@@ -223,9 +223,9 @@ for f in range(k):
     
             # bad = find_bad_grads(model)
             
-            #total_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0) # norm clipping gradients
-            # if not torch.isfinite(torch.tensor(total_norm)):                    # debug INF
-                # raise RuntimeError(f"Grad_norm NaN/Inf: {total_norm}")    # debug INF
+            total_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0) # norm clipping gradients
+            if not torch.isfinite(torch.tensor(total_norm)):                    # debug INF
+                raise RuntimeError(f"Grad_norm NaN/Inf: {total_norm}")    # debug INF
                 
             
             optimizer.step()
