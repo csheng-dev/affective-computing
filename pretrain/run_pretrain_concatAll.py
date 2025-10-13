@@ -28,6 +28,7 @@ from utils.split_data import split_k_fold
 import random
 
 from utils.experiment_utils import init_experiment
+from torch.optim.lr_scheduler import SequentialLR, LinearLR, CosineAnnealingLR
 
 # ===== config =====
 
@@ -163,6 +164,9 @@ for f in range(k):
         val_ls.append(ds)
     val_ds = torch.cat(val_ls, dim=0)
     
+    train_loader = DataLoader(TensorDataset(train_ds, train_ds), batch_size = batch_size, shuffle = True)
+    val_loader = DataLoader(TensorDataset(val_ds, val_ds), batch_size = batch_size, shuffle = False)
+    
     # create checkpoint dir for each fold
     tb_dir = os.path.join(exp_dir, "tensorboard", f"fold_{f}_lr{args.lr}_bs{batch_size}")
     writer = SummaryWriter(log_dir=tb_dir)
@@ -179,7 +183,18 @@ for f in range(k):
                              dropout = config['model']['dropout'])
     model = model.to(device)
     
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
+    total_steps = epochs * len(train_loader)
+    warmup = int(0.1 * total_steps)
+    scheduler = SequentialLR(
+        optimizer,
+        schedulers=[
+            LinearLR(optimizer, start_factor=0.1, total_iters=warmup),
+            CosineAnnealingLR(optimizer, T_max=total_steps - warmup)
+        ],
+        milestones=[warmup]
+    )
+    
     loss_fn = torch.nn.MSELoss()
     
     # train several epochs, record early/best of the fold
@@ -197,8 +212,6 @@ for f in range(k):
     
         base_seed = args.seed + f*1000 + epoch
         
-        train_loader = DataLoader(TensorDataset(train_ds, train_ds), batch_size = batch_size, shuffle = True)
-        val_loader = DataLoader(TensorDataset(val_ds, val_ds), batch_size = batch_size, shuffle = False)
         
         # count total number of batches in this epoch
         len_train_loader = len(train_loader)
