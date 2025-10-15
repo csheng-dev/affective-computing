@@ -185,12 +185,12 @@ for f in range(k):
     
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
     total_steps = epochs * len(train_loader)
-    warmup = int(0.1 * total_steps)
+    warmup = int(0.4 * total_steps)
     scheduler = SequentialLR(
         optimizer,
         schedulers=[
             LinearLR(optimizer, start_factor=0.1, total_iters=warmup),
-            CosineAnnealingLR(optimizer, T_max=total_steps - warmup)
+            CosineAnnealingLR(optimizer, T_max=total_steps - warmup, eta_min=1e-4)
         ],
         milestones=[warmup]
     )
