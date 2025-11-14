@@ -75,7 +75,6 @@ print(f"[INFO] Experiment directory has been created: {exp_dir}")
 preprocessed_path = '/home/sheng/project/affective-computing/preprocessed_data/' # server path
 
 epochs = args.epochs
-lr = args.lr
 batch_size = args.batch_size
 k = 5 # num of folds in spliting
 
@@ -183,14 +182,14 @@ for f in range(k):
                              dropout = config['model']['dropout'])
     model = model.to(device)
     
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-4)
     total_steps = epochs * len(train_loader)
-    warmup = int(0.4 * total_steps)
+    warmup = int(0.1 * total_steps)
     scheduler = SequentialLR(
         optimizer,
         schedulers=[
             LinearLR(optimizer, start_factor=0.1, total_iters=warmup),
-            CosineAnnealingLR(optimizer, T_max=total_steps - warmup, eta_min=1e-4)
+            CosineAnnealingLR(optimizer, T_max=total_steps - warmup, eta_min=3e-4)
         ],
         milestones=[warmup]
     )
@@ -242,6 +241,7 @@ for f in range(k):
                 
             
             optimizer.step()
+            scheduler.step()
             
             bs = inputs.size(0)
             train_samples += bs
