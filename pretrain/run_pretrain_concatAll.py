@@ -234,7 +234,6 @@ for f in range(k):
             loss.backward()
     
             # bad = find_bad_grads(model)
-            
             total_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0) # norm clipping gradients
             if not torch.isfinite(torch.tensor(total_norm)):                    # debug INF
                 raise RuntimeError(f"Grad_norm NaN/Inf: {total_norm}")    # debug INF
@@ -248,8 +247,10 @@ for f in range(k):
             total_train_loss += loss.item()*bs
             
             # plot loss vs batch_idx 
-            if batch_idx % 10 == 0:
-                writer.add_scalar("loss/train_batch", loss.item(), global_step)
+            writer.add_scalar("loss/train_batch", loss.item(), global_step)
+            writer.add_scalar("lr/lr", optimizer.param_groups[0]["lr"], global_step)
+            writer.add_scalar("grad/norm", total_norm, global_step)
+
             
             global_step += 1
             
